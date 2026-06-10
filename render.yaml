@@ -1,0 +1,42 @@
+# Render Blueprint — arb-pulse production (Docker, branch main)
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: arb-pulse
+    runtime: docker
+    plan: free
+    region: singapore
+    repo: https://github.com/mauricioabh/arbpulse
+    branch: main
+    autoDeployTrigger: commit
+    healthCheckPath: /api/health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STALE_MS
+        value: "3000"
+      - key: FLICKER_CONFIRM_MS
+        value: "150"
+      - key: MIN_NET_PROFIT_PCT
+        value: "0.0005"
+      - key: MAX_TRADE_BTC
+        value: "0.25"
+      - key: LATENCY_MS
+        value: "120"
+      - key: LATENCY_SLIPPAGE_BPS
+        value: "2"
+      - key: CIRCUIT_BREAKER_LOSSES
+        value: "5"
+      - key: CIRCUIT_BREAKER_COOLDOWN_MS
+        value: "15000"
+      - key: INITIAL_USDT
+        value: "50000"
+      - key: INITIAL_BTC
+        value: "0.5"
+      - key: DEMO_MODE
+        value: "false"
+      - key: RECORD_FEED
+        value: "false"
