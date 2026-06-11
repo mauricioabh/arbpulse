@@ -1,6 +1,14 @@
 import { Router, type Request, type Response } from "express";
 import type { ApplicationService } from "../../composition/application-service.js";
 import type { SseHub } from "../sse/sse.js";
+import {
+  ConfigPatchSchema,
+  DemoControlBodySchema,
+  MaxTradeControlBodySchema,
+  RecordControlBodySchema,
+  ThresholdControlBodySchema,
+} from "./schemas/requests.js";
+import { parseBody } from "./validate.js";
 
 export function createRouter(app: ApplicationService, sse: SseHub): Router {
   const router = Router();
@@ -22,7 +30,10 @@ export function createRouter(app: ApplicationService, sse: SseHub): Router {
   });
 
   router.patch("/config", (req: Request, res: Response) => {
-    const error = app.patchConfig(req.body ?? {});
+    const patch = parseBody(ConfigPatchSchema, req, res);
+    if (patch === null) return;
+
+    const error = app.patchConfig(patch);
     if (error) {
       res.status(400).json({ success: false, error });
       return;
@@ -46,51 +57,43 @@ export function createRouter(app: ApplicationService, sse: SseHub): Router {
   });
 
   router.post("/control/demo", (req: Request, res: Response) => {
-    const enabled = req.body?.enabled;
-    if (typeof enabled !== "boolean") {
-      res.status(400).json({ success: false, error: "enabled must be a boolean" });
-      return;
-    }
-    app.setDemoMode(enabled);
-    res.json({ success: true, data: { demoMode: enabled } });
+    const body = parseBody(DemoControlBodySchema, req, res);
+    if (body === null) return;
+
+    app.setDemoMode(body.enabled);
+    res.json({ success: true, data: { demoMode: body.enabled } });
   });
 
   router.post("/control/record", (req: Request, res: Response) => {
-    const enabled = req.body?.enabled;
-    if (typeof enabled !== "boolean") {
-      res.status(400).json({ success: false, error: "enabled must be a boolean" });
-      return;
-    }
-    app.setRecordFeed(enabled);
-    res.json({ success: true, data: { recordFeed: enabled } });
+    const body = parseBody(RecordControlBodySchema, req, res);
+    if (body === null) return;
+
+    app.setRecordFeed(body.enabled);
+    res.json({ success: true, data: { recordFeed: body.enabled } });
   });
 
   router.post("/control/threshold", (req: Request, res: Response) => {
-    const pct = req.body?.pct;
-    if (typeof pct !== "number" || !Number.isFinite(pct)) {
-      res.status(400).json({ success: false, error: "pct must be a finite number" });
-      return;
-    }
-    const error = app.setThreshold(pct);
+    const body = parseBody(ThresholdControlBodySchema, req, res);
+    if (body === null) return;
+
+    const error = app.setThreshold(body.pct);
     if (error) {
       res.status(400).json({ success: false, error });
       return;
     }
-    res.json({ success: true, data: { minNetProfitPct: pct } });
+    res.json({ success: true, data: { minNetProfitPct: body.pct } });
   });
 
   router.post("/control/max-trade", (req: Request, res: Response) => {
-    const btc = req.body?.btc;
-    if (typeof btc !== "number" || !Number.isFinite(btc)) {
-      res.status(400).json({ success: false, error: "btc must be a finite number" });
-      return;
-    }
-    const error = app.setMaxTradeBtc(btc);
+    const body = parseBody(MaxTradeControlBodySchema, req, res);
+    if (body === null) return;
+
+    const error = app.setMaxTradeBtc(body.btc);
     if (error) {
       res.status(400).json({ success: false, error });
       return;
     }
-    res.json({ success: true, data: { maxTradeBtc: btc } });
+    res.json({ success: true, data: { maxTradeBtc: body.btc } });
   });
 
   return router;
