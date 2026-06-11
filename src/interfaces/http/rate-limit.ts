@@ -1,7 +1,7 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import type { NextFunction, Request, Response } from "express";
-import { isUpstashConfigured } from "../cache/upstash.js";
+import { isUpstashConfigured } from "../../infrastructure/cache/upstash.js";
 
 type RouteTier = "read" | "stream" | "write" | "health";
 
