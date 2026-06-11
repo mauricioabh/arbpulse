@@ -343,6 +343,13 @@ Eso no indica que el bot “no funcione”: indica que el filtro económico es e
 
 ---
 
+## Production practices
+
+- **Pre-commit:** Husky runs lint-staged (`eslint --fix`, `prettier --write`) on staged `*.ts` / `*.tsx` in `src/` and `web/src/`.
+- **Observability:** Sentry planned — set `SENTRY_DSN` in `.env` after creating the `arbpulse` project in Sentry.
+
+---
+
 ## Licencia
 
 MIT — ver archivo `LICENSE` cuando se añada al repositorio.
