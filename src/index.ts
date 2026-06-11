@@ -1,4 +1,9 @@
+import { initInstrumentation } from "./instrumentation/index.js";
+
+initInstrumentation();
+
 import express from "express";
+import * as Sentry from "@sentry/node";
 import { apiReference } from "@scalar/express-api-reference";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -25,6 +30,7 @@ function main(): void {
   const server = express();
   server.use(express.json());
   server.use("/api", createRouter(ctx.application, sse));
+  Sentry.setupExpressErrorHandler(server);
 
   server.use(
     "/api-docs",

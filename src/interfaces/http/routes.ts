@@ -1,6 +1,20 @@
-import { Router, type Request, type Response } from "express";
+import {
+  Router,
+  type NextFunction,
+  type Request,
+  type Response,
+} from "express";
 import type { ApplicationService } from "../../composition/application-service.js";
+import {
+  bindRequestCorrelation,
+  runWithCorrelation,
+} from "../../infrastructure/logging/correlation.js";
+import {
+  getCachedSnapshot,
+  setCachedSnapshot,
+} from "../../infrastructure/cache/upstash.js";
 import type { SseHub } from "../sse/sse.js";
+import { createRateLimitMiddleware } from "./rate-limit.js";
 import {
   ConfigPatchSchema,
   DemoControlBodySchema,
@@ -13,12 +27,28 @@ import { parseBody } from "./validate.js";
 export function createRouter(app: ApplicationService, sse: SseHub): Router {
   const router = Router();
 
+  router.use((req: Request, res: Response, next: NextFunction) => {
+    const ctx = bindRequestCorrelation(req.header("x-request-id"));
+    res.setHeader("x-request-id", ctx.correlationId);
+    runWithCorrelation(ctx, () => next());
+  });
+
+  router.use(createRateLimitMiddleware());
+
   router.get("/health", (_req: Request, res: Response) => {
     res.json({ success: true, data: { status: "ok", ts: Date.now() } });
   });
 
-  router.get("/state", (_req: Request, res: Response) => {
-    res.json({ success: true, data: app.getSnapshot() });
+  router.get("/state", async (_req: Request, res: Response) => {
+    const cached =
+      await getCachedSnapshot<ReturnType<ApplicationService["getSnapshot"]>>();
+    if (cached) {
+      res.json({ success: true, data: cached });
+      return;
+    }
+    const snapshot = app.getSnapshot();
+    void setCachedSnapshot(snapshot);
+    res.json({ success: true, data: snapshot });
   });
 
   router.get("/stream", (req: Request, res: Response) => {

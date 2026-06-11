@@ -1,22 +1,38 @@
-type Level = "info" | "warn" | "error";
+import pino from "pino";
+import { getCorrelationContext } from "./correlation.js";
 
-function emit(level: Level, scope: string, msg: string, extra?: unknown): void {
-  const ts = new Date().toISOString();
-  const line = `${ts} [${level.toUpperCase()}] (${scope}) ${msg}`;
-  if (level === "error") {
-    console.error(line, extra ?? "");
-  } else if (level === "warn") {
-    console.warn(line, extra ?? "");
-  } else {
-    console.log(line, extra ?? "");
-  }
-}
+const root = pino({
+  level: process.env.LOG_LEVEL ?? "info",
+  base: { service: "arbpulse" },
+  timestamp: pino.stdTimeFunctions.isoTime,
+  ...(process.env.NODE_ENV !== "production"
+    ? {
+        transport: {
+          target: "pino-pretty",
+          options: { colorize: true, singleLine: true },
+        },
+      }
+    : {}),
+});
 
 export function createLogger(scope: string) {
+  const child = root.child({ scope });
   return {
-    info: (msg: string, extra?: unknown) => emit("info", scope, msg, extra),
-    warn: (msg: string, extra?: unknown) => emit("warn", scope, msg, extra),
-    error: (msg: string, extra?: unknown) => emit("error", scope, msg, extra),
+    info: (msg: string, extra?: Record<string, unknown>) =>
+      child.info({ ...bindings(), ...extra }, msg),
+    warn: (msg: string, extra?: Record<string, unknown>) =>
+      child.warn({ ...bindings(), ...extra }, msg),
+    error: (msg: string, extra?: Record<string, unknown>) =>
+      child.error({ ...bindings(), ...extra }, msg),
+  };
+}
+
+function bindings(): Record<string, unknown> {
+  const ctx = getCorrelationContext();
+  if (!ctx) return {};
+  return {
+    correlationId: ctx.correlationId,
+    ...(ctx.exchange ? { exchange: ctx.exchange } : {}),
   };
 }
 

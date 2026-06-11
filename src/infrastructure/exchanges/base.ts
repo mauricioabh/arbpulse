@@ -1,5 +1,7 @@
 import WebSocket from "ws";
+import * as Sentry from "@sentry/node";
 import type { ExchangeId, OrderBook } from "../../domain/entities/index.js";
+import { withSpan } from "../../instrumentation/otel.js";
 import { createLogger, type Logger } from "../logging/logger.js";
 import type { MarketDataFeed } from "../../domain/ports/ports.js";
 import { LocalBook } from "./local-book.js";
@@ -56,12 +58,16 @@ export abstract class ExchangeConnector implements MarketDataFeed {
     ws.on("open", () => {
       this.reconnectAttempts = 0;
       this.book.reset();
-      this.log.info(this.skipSubscribe() ? "connected" : "connected, subscribing");
+      this.log.info(
+        this.skipSubscribe() ? "connected" : "connected, subscribing",
+      );
       if (!this.skipSubscribe()) {
         try {
           ws.send(JSON.stringify(this.subscribeMessage()));
         } catch (err) {
-          this.log.error("subscribe send failed", err);
+          this.log.error("subscribe send failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
         }
       }
       this.startPing();
@@ -72,15 +78,27 @@ export abstract class ExchangeConnector implements MarketDataFeed {
       const text = data.toString();
       // Some exchanges (OKX) reply to app-level pings with a plain "pong" frame.
       if (text === "pong" || text === "ping") return;
-      try {
-        this.handleMessage(JSON.parse(text));
-      } catch (err) {
-        this.log.warn("failed to parse message", err);
-      }
+      void withSpan(
+        "ws.message",
+        { exchange: this.id, bytes: text.length },
+        async () => {
+          try {
+            this.handleMessage(JSON.parse(text));
+          } catch (err) {
+            this.log.warn("failed to parse message", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          }
+        },
+      );
     });
 
     ws.on("error", (err) => {
-      this.log.error("socket error", err instanceof Error ? err.message : err);
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.log.error("socket error", { error: error.message });
+      Sentry.captureException(error, {
+        tags: { exchange: this.id, component: "ws" },
+      });
     });
 
     ws.on("close", () => {
@@ -97,8 +115,13 @@ export abstract class ExchangeConnector implements MarketDataFeed {
 
   private scheduleReconnect(): void {
     this.reconnectAttempts += 1;
-    const delay = Math.min(30_000, 500 * 2 ** Math.min(this.reconnectAttempts, 6));
-    this.log.warn(`disconnected, reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+    const delay = Math.min(
+      30_000,
+      500 * 2 ** Math.min(this.reconnectAttempts, 6),
+    );
+    this.log.warn(
+      `disconnected, reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`,
+    );
     setTimeout(() => {
       if (!this.closed) this.connect();
     }, delay);
