@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit && npm --prefix web run typecheck",
     "test": "node scripts/run-tests.mjs",
     "test:e2e": "playwright test",
+    "test:observability": "playwright test observability.spec.ts",
     "lint": "eslint .",
     "prepare": "husky"
   },

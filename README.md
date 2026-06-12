@@ -347,7 +347,7 @@ Eso no indica que el bot “no funcione”: indica que el filtro económico es e
 
 - **Pre-commit:** Husky runs lint-staged (`eslint --fix`, `prettier --write`) on staged `*.ts` / `*.tsx` in `src/` and `web/src/`.
 - **API contracts:** Zod schemas per REST endpoint → OpenAPI via `@asteasolutions/zod-to-openapi` → Scalar UI at `/api-docs`. Request bodies validated with Zod in route handlers.
-- **Observability:** `@sentry/node` captures REST, WebSocket feed, and SSE errors; `pino` JSON logs with `correlationId` (from `x-request-id` or per book tick); OpenTelemetry spans (`ws.message` → `orderbook.process` → `arbitrage.evaluate` → `sse.broadcast`) export to Sentry via `@sentry/opentelemetry` when `SENTRY_DSN` is set.
+- **Observability:** `@sentry/node` captures REST, WebSocket feed, and SSE errors; `pino` JSON logs with `correlationId` (from `x-request-id` or per book tick); OpenTelemetry spans (`ws.message` → `orderbook.process` → `arbitrage.evaluate` → `sse.broadcast`) export to Sentry via `@sentry/opentelemetry` when `SENTRY_DSN` is set. Dev probe: `GET /api/debug/sentry`; verify with `npm run test:observability`.
 - **Rate limiting & cache:** Upstash sliding-window limits per IP on read/write/SSE routes (`429` + `Retry-After`). Latest `StateSnapshot` cached in Redis (~1s TTL) for `GET /api/state` and refreshed on SSE broadcast. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
 - **CI:** GitHub Actions quality pipeline (typecheck, unit tests, build); Playwright smoke on PRs — dashboard loads and SSE connects (`npm run test:e2e`, workflow `e2e.yml`, `DEMO_MODE=true` in CI).
 - **Security scanning:** CodeQL (`.github/workflows/codeql.yml`); Dependabot for npm (root + `web/`) and GitHub Actions.

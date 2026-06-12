@@ -4,6 +4,7 @@ import {
   type Request,
   type Response,
 } from "express";
+import { Sentry } from "../../instrumentation/sentry.js";
 import type { ApplicationService } from "../../composition/application-service.js";
 import {
   bindRequestCorrelation,
@@ -37,6 +38,15 @@ export function createRouter(app: ApplicationService, sse: SseHub): Router {
 
   router.get("/health", (_req: Request, res: Response) => {
     res.json({ success: true, data: { status: "ok", ts: Date.now() } });
+  });
+
+  router.get("/debug/sentry", (_req: Request, res: Response) => {
+    if (process.env.NODE_ENV === "production") {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    Sentry.captureException(new Error("Arb Pulse Sentry test error"));
+    res.json({ ok: true, message: "Test error sent to Sentry" });
   });
 
   router.get("/state", async (_req: Request, res: Response) => {

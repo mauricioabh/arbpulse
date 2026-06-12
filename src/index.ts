@@ -1,3 +1,4 @@
+import "./load-env.js";
 import { initInstrumentation } from "./instrumentation/index.js";
 
 initInstrumentation();
