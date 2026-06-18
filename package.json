@@ -13,6 +13,7 @@
     "build": "npm --prefix web install && npm --prefix web run build",
     "typecheck": "tsc --noEmit && npm --prefix web run typecheck",
     "test": "node scripts/run-tests.mjs",
+    "test:rate-limit": "node --import tsx --test src/interfaces/http/rate-limit.test.ts",
     "test:e2e": "playwright test",
     "test:observability": "playwright test observability.spec.ts",
     "lint": "eslint .",
