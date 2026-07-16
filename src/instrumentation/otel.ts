@@ -2,17 +2,20 @@ import * as Sentry from "@sentry/node";
 import { trace, type Span, type Tracer } from "@opentelemetry/api";
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node";
 import { SentrySpanProcessor, SentryPropagator } from "@sentry/opentelemetry";
+import { isTracingEnabled } from "./tracing.js";
 
 let tracer: Tracer | null = null;
 
 /**
- * OpenTelemetry spans export to Sentry via @sentry/opentelemetry when SENTRY_DSN is set.
- * Without a DSN, spans are no-ops (safe for local dev and tests).
+ * OpenTelemetry spans export to Sentry via @sentry/opentelemetry only when
+ * SENTRY_DSN is set AND SENTRY_TRACING is enabled. Otherwise spans are no-ops
+ * (default; safe for 24/7 operation, local dev, and tests). Error capture in
+ * `withSpan` is preserved regardless.
  */
 export function initOpenTelemetry(): Tracer {
   if (tracer) return tracer;
 
-  if (!process.env.SENTRY_DSN?.trim()) {
+  if (!process.env.SENTRY_DSN?.trim() || !isTracingEnabled()) {
     tracer = trace.getTracer("arbpulse");
     return tracer;
   }
