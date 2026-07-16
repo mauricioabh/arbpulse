@@ -1,0 +1,9 @@
+# Automatic HTTPS via Let's Encrypt. DOMAIN comes from ./.env (docker compose
+# substitutes ${DOMAIN}). Point the domain's DNS A record to this VPS first.
+{$DOMAIN} {
+	# flush_interval -1 disables response buffering so SSE (/api/stream) streams
+	# in real time. Do NOT gzip event-stream responses (would buffer them).
+	reverse_proxy app:8080 {
+		flush_interval -1
+	}
+}
