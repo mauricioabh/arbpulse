@@ -7,12 +7,28 @@ Despliegue con Docker Compose: el contenedor `app` (Node + tsx) detrás de
 ## Prerrequisitos
 
 1. VPS Ubuntu/Debian (recomendado 2 vCPU / 2 GB RAM — p. ej. Hetzner CX22).
-2. Un dominio con **registro DNS A apuntando a la IP del VPS** (necesario para el
-   HTTPS de Caddy).
+2. Subdominio en Cloudflare (zona `wayool.com`): `arbpulse.wayool.com` con un
+   registro **A → IP del VPS**. Ver "DNS en Cloudflare" abajo.
 3. Puertos abiertos:
    ```bash
    sudo ufw allow 22 && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw --force enable
    ```
+
+## DNS en Cloudflare (zona wayool.com)
+
+El dominio `wayool.com` está gestionado por Cloudflare. La app se sirve en el
+subdominio **`arbpulse.wayool.com`**.
+
+- Registro: **A**, nombre `arbpulse`, contenido = IP pública del VPS.
+- **Proxy: "DNS only" (nube gris), NO proxied (nube naranja).**
+  - Motivo: Caddy emite el cert Let's Encrypt vía HTTP-01 (requiere que el reto en
+    el puerto 80 llegue directo al origen), y el stream SSE de `/api/stream` fluye
+    sin el buffering/timeout del proxy de Cloudflare.
+  - Si más adelante querés proxear con Cloudflare (naranja) para ocultar la IP,
+    hay que cambiar Caddy a challenge DNS-01 (plugin `caddy-dns/cloudflare` + token
+    de API) y poner SSL/TLS en "Full (strict)". No es necesario para arrancar.
+- Verificar propagación: `dig +short arbpulse.wayool.com` debe devolver la IP del
+  VPS antes de que Caddy pida el certificado.
 
 ## Deploy (para el agente del VPS)
 
