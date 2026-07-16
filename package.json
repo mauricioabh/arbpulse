@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "test:observability": "playwright test observability.spec.ts",
     "lint": "eslint .",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "lint-staged": {
     "src/**/*.ts": [
