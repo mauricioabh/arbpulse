@@ -3,11 +3,16 @@
 # Safe to re-run: installs Docker if missing, clones or fast-forwards the repo,
 # then (re)builds and restarts the containers. On first run it creates .env from
 # the example and stops so you can fill in DOMAIN + secrets.
+#
+# Default: runs ONLY the app on 127.0.0.1:8080 (put it behind your host reverse
+# proxy — see deploy/nginx/). Set WITH_CADDY=1 to also start the bundled Caddy on
+# 80/443 (only for a fresh server with nothing else on those ports).
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/mauricioabh/arbpulse.git}"
 APP_DIR="${APP_DIR:-/opt/arbpulse}"
 BRANCH="${BRANCH:-main}"
+WITH_CADDY="${WITH_CADDY:-0}"
 
 echo "==> Arb Pulse VPS deploy (branch: $BRANCH, dir: $APP_DIR)"
 
@@ -48,8 +53,13 @@ if [ ! -f .env ]; then
 fi
 
 # 4) Build + run
-echo "==> Building and starting containers..."
-docker compose up -d --build
+if [ "$WITH_CADDY" = "1" ]; then
+  echo "==> Building and starting app + bundled Caddy (ports 80/443)..."
+  docker compose --profile caddy up -d --build
+else
+  echo "==> Building and starting app only (127.0.0.1:8080)..."
+  docker compose up -d --build
+fi
 
 echo "==> Waiting for health..."
 sleep 8
@@ -60,5 +70,11 @@ if curl -fsS http://127.0.0.1:8080/api/health >/dev/null 2>&1; then
 else
   echo "!! Health check not passing yet. Inspect: docker compose logs -f app"
 fi
-echo "==> If your domain's A record points here, Caddy will issue HTTPS automatically."
-echo "==> Verify: curl -s https://\$DOMAIN/api/health"
+
+if [ "$WITH_CADDY" = "1" ]; then
+  echo "==> Bundled Caddy will issue HTTPS once DNS for \$DOMAIN points here."
+  echo "==> Verify: curl -s https://\$DOMAIN/api/health"
+else
+  echo "==> App is bound to 127.0.0.1:8080. Put it behind your host reverse proxy:"
+  echo "    see $APP_DIR/deploy/nginx/arbpulse.wayool.com.conf (nginx + certbot)."
+fi
