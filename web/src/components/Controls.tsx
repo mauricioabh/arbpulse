@@ -9,15 +9,28 @@ interface Props {
   config: PublicConfig;
 }
 
-function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }): JSX.Element {
+function Toggle({
+  label,
+  on,
+  onChange,
+}: {
+  label: string;
+  on: boolean;
+  onChange: (v: boolean) => void;
+}): JSX.Element {
   return (
     <button
       type="button"
       onClick={() => onChange(!on)}
-      className="flex items-center justify-between gap-3 rounded-xl border border-ink-600/50 bg-ink-700/30 px-3 py-2 text-left text-sm transition hover:border-ink-500"
+      className="flex min-h-[44px] items-center justify-between gap-3 rounded-xl border border-ink-600/50 bg-ink-700/30 px-3 py-2 text-left text-sm transition hover:border-ink-500"
     >
       <span className="text-slate-300">{label}</span>
-      <span className={clsx("relative h-5 w-9 rounded-full transition", on ? "bg-accent" : "bg-ink-500")}>
+      <span
+        className={clsx(
+          "relative h-5 w-9 rounded-full transition",
+          on ? "bg-accent" : "bg-ink-500",
+        )}
+      >
         <span
           className={clsx(
             "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all",
@@ -41,7 +54,7 @@ export function Controls({ stats, config }: Props): JSX.Element {
             <button
               type="button"
               onClick={() => control.resume()}
-              className="rounded-xl border border-profit/40 bg-profit/10 px-3 py-2 text-sm font-semibold text-profit transition hover:bg-profit/20"
+              className="min-h-[44px] rounded-xl border border-profit/40 bg-profit/10 px-3 py-2 text-sm font-semibold text-profit transition hover:bg-profit/20"
             >
               Resume
             </button>
@@ -49,7 +62,7 @@ export function Controls({ stats, config }: Props): JSX.Element {
             <button
               type="button"
               onClick={() => control.pause()}
-              className="rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm font-semibold text-warn transition hover:bg-warn/20"
+              className="min-h-[44px] rounded-xl border border-warn/40 bg-warn/10 px-3 py-2 text-sm font-semibold text-warn transition hover:bg-warn/20"
             >
               Pause
             </button>
@@ -57,13 +70,17 @@ export function Controls({ stats, config }: Props): JSX.Element {
           <button
             type="button"
             onClick={() => control.reset()}
-            className="rounded-xl border border-loss/40 bg-loss/10 px-3 py-2 text-sm font-semibold text-loss transition hover:bg-loss/20"
+            className="min-h-[44px] rounded-xl border border-loss/40 bg-loss/10 px-3 py-2 text-sm font-semibold text-loss transition hover:bg-loss/20"
           >
             Reset
           </button>
         </div>
 
-        <Toggle label="Demo mode (synthetic feed)" on={stats.demoMode} onChange={(v) => control.setDemo(v)} />
+        <Toggle
+          label="Demo mode (synthetic feed)"
+          on={stats.demoMode}
+          onChange={(v) => control.setDemo(v)}
+        />
 
         <div className="rounded-xl border border-ink-600/50 bg-ink-700/30 px-3 py-2">
           <div className="mb-1 flex items-center justify-between text-sm">
@@ -89,7 +106,10 @@ export function Controls({ stats, config }: Props): JSX.Element {
           <div className="flex justify-between">
             <span>Taker fees</span>
             <span className="font-mono">
-              K {pct(config.takerFees.kraken, 2)} · By {pct(config.takerFees.bybit, 2)} · O {pct(config.takerFees.okx, 2)} · Bn {pct(config.takerFees.binance, 2)}
+              K {pct(config.takerFees.kraken, 2)} · By{" "}
+              {pct(config.takerFees.bybit, 2)} · O{" "}
+              {pct(config.takerFees.okx, 2)} · Bn{" "}
+              {pct(config.takerFees.binance, 2)}
             </span>
           </div>
           <div className="mt-1 flex justify-between">

@@ -37,12 +37,21 @@ function Toggle({
       type="button"
       onClick={() => onChange(!on)}
       className={clsx(
-        "flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition",
-        modified ? "border-accent/50 bg-accent/5" : "border-ink-600/50 bg-ink-700/30 hover:border-ink-500",
+        "flex min-h-[44px] items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition",
+        modified
+          ? "border-accent/50 bg-accent/5"
+          : "border-ink-600/50 bg-ink-700/30 hover:border-ink-500",
       )}
     >
-      <span className={clsx(modified ? "text-accent" : "text-slate-300")}>{label}</span>
-      <span className={clsx("relative h-5 w-9 rounded-full transition", on ? "bg-accent" : "bg-ink-500")}>
+      <span className={clsx(modified ? "text-accent" : "text-slate-300")}>
+        {label}
+      </span>
+      <span
+        className={clsx(
+          "relative h-5 w-9 rounded-full transition",
+          on ? "bg-accent" : "bg-ink-500",
+        )}
+      >
         <span
           className={clsx(
             "absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all",
@@ -77,11 +86,15 @@ function SliderRow({
     <div
       className={clsx(
         "rounded-xl border px-3 py-2",
-        modified ? "border-accent/50 bg-accent/5" : "border-ink-600/50 bg-ink-700/30",
+        modified
+          ? "border-accent/50 bg-accent/5"
+          : "border-ink-600/50 bg-ink-700/30",
       )}
     >
       <div className="mb-1 flex items-center justify-between text-sm">
-        <span className={clsx(modified ? "text-accent" : "text-slate-300")}>{label}</span>
+        <span className={clsx(modified ? "text-accent" : "text-slate-300")}>
+          {label}
+        </span>
         <span className="font-mono text-accent">{valueLabel}</span>
       </div>
       <input
@@ -179,7 +192,9 @@ export function ConfigPanel({ config }: Props): JSX.Element {
         />
 
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Active exchanges</p>
+          <p className="text-xs font-medium uppercase tracking-wider text-slate-500">
+            Active exchanges
+          </p>
           {EXCHANGES.map(({ id, label }) => (
             <Toggle
               key={id}

@@ -19,13 +19,16 @@ export function App(): JSX.Element {
   }, []);
 
   return (
-    <div className="mx-auto max-w-[1400px] px-4 py-6 lg:px-8">
-      <header className="mb-6 flex items-end justify-between">
+    <div className="mx-auto max-w-[1400px] px-4 pb-6 pt-[max(1.5rem,env(safe-area-inset-top))] lg:px-8">
+      <header className="mb-6 flex items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-extrabold tracking-tight text-slate-100">
             Arb<span className="text-accent">Pulse</span>
           </h1>
-          <p className="text-sm text-slate-500">Real-time cross-exchange BTC arbitrage engine · Kraken · Bybit · OKX · Binance</p>
+          <p className="text-sm text-slate-500">
+            Real-time cross-exchange BTC arbitrage engine · Kraken · Bybit · OKX
+            · Binance
+          </p>
         </div>
         <p className="hidden text-xs text-slate-600 sm:block">
           BTC/USDT · WebSocket feeds · inventory model
@@ -33,7 +36,9 @@ export function App(): JSX.Element {
       </header>
 
       {!snapshot ? (
-        <div className="flex h-[60vh] items-center justify-center text-slate-500">Connecting to engine…</div>
+        <div className="flex h-[60vh] items-center justify-center text-slate-500">
+          Connecting to engine…
+        </div>
       ) : (
         <div className="space-y-5">
           <StatsBar stats={snapshot.stats} connected={connected} />
@@ -47,7 +52,10 @@ export function App(): JSX.Element {
             <div className="space-y-5">
               <Controls stats={snapshot.stats} config={snapshot.config} />
               <ConfigPanel config={snapshot.config} />
-              <Wallets wallets={snapshot.wallets} rebalances={snapshot.rebalances} />
+              <Wallets
+                wallets={snapshot.wallets}
+                rebalances={snapshot.rebalances}
+              />
               <OpportunityFeed opportunities={snapshot.recentOpportunities} />
             </div>
           </div>
