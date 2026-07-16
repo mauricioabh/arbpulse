@@ -1,0 +1,43 @@
+# Arb Pulse — VPS deployment (app + Caddy reverse proxy with automatic HTTPS).
+# Usage: from this directory, `docker compose up -d --build`.
+# Requires a ./.env file (copy from .env.vps.example and fill DOMAIN + secrets).
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: arbpulse:latest
+    container_name: arbpulse
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    # Bind to loopback only; public traffic goes through Caddy on 80/443.
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: arbpulse-caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
