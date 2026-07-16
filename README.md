@@ -301,9 +301,9 @@ Respuestas REST siguen la forma `{ success, data?, error? }`.
 | `POST` | `/api/control/record` | `{ "enabled": boolean }` — grabación NDJSON en `data/` |
 | `POST` | `/api/control/threshold` | `{ "pct": number }` (atajo de `PATCH /api/config`) |
 | `POST` | `/api/control/max-trade` | `{ "btc": number }` (atajo de `PATCH /api/config`) |
-| `GET` | `/api-docs` | **Swagger UI** — documentación interactiva OpenAPI 3.0 |
+| `GET` | `/api-docs` | **Scalar** — documentación interactiva OpenAPI 3.0 |
 
-Contrato completo y schemas en `src/interfaces/http/openapi.ts`.
+Contrato generado desde Zod (`src/interfaces/http/schemas/`) con `@asteasolutions/zod-to-openapi`; registro de rutas en `src/interfaces/http/openapi.ts`.
 
 ---
 
@@ -340,6 +340,17 @@ Eso no indica que el bot “no funcione”: indica que el filtro económico es e
 
 - Arbitraje triangular (misma exchange, otra ruta de precios).
 - Replay determinista desde NDJSON grabado (hoy: recorder; loader en evolución).
+
+---
+
+## Production practices
+
+- **Pre-commit:** Husky runs lint-staged (`eslint --fix`, `prettier --write`) on staged `*.ts` / `*.tsx` in `src/` and `web/src/`.
+- **API contracts:** Zod schemas per REST endpoint → OpenAPI via `@asteasolutions/zod-to-openapi` → Scalar UI at `/api-docs`. Request bodies validated with Zod in route handlers.
+- **Observability:** `@sentry/node` captures REST, WebSocket feed, and SSE errors (always on when `SENTRY_DSN` is set); `pino` JSON logs with `correlationId` (from `x-request-id` or per book tick); OpenTelemetry spans (`ws.message` → `orderbook.process` → `arbitrage.evaluate` → `sse.broadcast`) export to Sentry via `@sentry/opentelemetry` **only when `SENTRY_TRACING` is enabled** (default off, so 24/7 operation stays within the free-tier span quota). With tracing off the tracer is a no-op — no spans are created or exported — but errors are still captured. Dev probe: `GET /api/debug/sentry`; verify with `npm run test:observability`.
+- **Rate limiting & cache:** Upstash sliding-window limits per IP on read/write/SSE routes (`429` + `Retry-After`). Latest `StateSnapshot` cached in Redis (~1s TTL) for `GET /api/state` and refreshed on SSE broadcast. Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Verify with `npm run test:rate-limit`.
+- **CI:** GitHub Actions quality pipeline (typecheck, unit tests, build); Playwright smoke on PRs — dashboard loads and SSE connects (`npm run test:e2e`, workflow `e2e.yml`, `DEMO_MODE=true` in CI).
+- **Security scanning:** CodeQL (`.github/workflows/codeql.yml`); Dependabot for npm (root + `web/`) and GitHub Actions.
 
 ---
 
