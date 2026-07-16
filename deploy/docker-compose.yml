@@ -1,5 +1,13 @@
-# Arb Pulse — VPS deployment (app + Caddy reverse proxy with automatic HTTPS).
-# Usage: from this directory, `docker compose up -d --build`.
+# Arb Pulse — VPS deployment.
+#
+# Default (`docker compose up -d --build`): runs ONLY the app container, bound to
+# 127.0.0.1:8080. Put it behind your existing reverse proxy (nginx/Caddy/Traefik)
+# on the host — see deploy/nginx/arbpulse.wayool.com.conf. This is the right mode
+# when the host already owns ports 80/443 for other apps.
+#
+# Optional bundled Caddy (`docker compose --profile caddy up -d --build`): only for
+# a FRESH server with nothing else on 80/443; Caddy then handles automatic HTTPS.
+#
 # Requires a ./.env file (copy from .env.vps.example and fill DOMAIN + secrets).
 
 services:
@@ -12,7 +20,7 @@ services:
     restart: unless-stopped
     env_file:
       - ./.env
-    # Bind to loopback only; public traffic goes through Caddy on 80/443.
+    # Bind to loopback only; the host reverse proxy forwards public traffic here.
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
@@ -22,10 +30,13 @@ services:
       retries: 3
       start_period: 15s
 
+  # Opt-in only via `--profile caddy`. Do NOT enable if the host already runs
+  # nginx/another proxy on 80/443 — the ports would collide.
   caddy:
     image: caddy:2-alpine
     container_name: arbpulse-caddy
     restart: unless-stopped
+    profiles: ["caddy"]
     depends_on:
       - app
     ports:
