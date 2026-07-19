@@ -2,7 +2,29 @@
 
 Despliegue con Docker Compose para correr 24/7 desde la rama `main`. El contenedor
 `app` (Node + tsx) queda en `127.0.0.1:8080` y un **reverse proxy del host** expone
-HTTPS. Dos modos:
+HTTPS.
+
+## Deploy automático (CI/CD con GHCR) — flujo normal
+
+Cada push/merge a `main` dispara `.github/workflows/vps-deploy.yml`:
+
+1. **Build en GitHub Actions** → imagen publicada en `ghcr.io/mauricioabh/arbpulse`
+   con tags `latest` + `sha-<commit>` (la VPS nunca buildea).
+2. **Deploy por SSH** → en la VPS: `git reset --hard origin/main` (en
+   `/root/projects/arbpulse`), `docker compose pull app`, `docker compose up -d app`
+   y espera del health check.
+
+Secrets del repo: `VPS_SSH_KEY` (deploy key dedicada, solo para esto),
+`VPS_HOST`, `VPS_USER`. Rollback: re-ejecutar el workflow desde un commit
+anterior (`workflow_dispatch`) o en la VPS hacer `docker compose pull` de un
+tag `sha-<commit>` previo.
+
+> No editar archivos del repo directamente en la VPS: el deploy hace
+> `git reset --hard` y los pisará. La config local vive solo en `deploy/.env`
+> (no trackeado).
+
+Lo que sigue abajo es el **camino manual/bootstrap** (primera instalación o
+fallback). Dos modos:
 
 - **Opción A — detrás de nginx existente (recomendado en este VPS).** El servidor ya
   corre nginx en 80/443 con certbot para otras apps (p. ej. `consumet.wayool.com`,
@@ -36,13 +58,13 @@ curl -fsSL https://raw.githubusercontent.com/mauricioabh/arbpulse/main/deploy/de
 bash /tmp/arbpulse-deploy.sh
 
 # 2) Editar el .env (DOMAIN + secretos opcionales)
-nano /opt/arbpulse/deploy/.env       # DOMAIN=arbpulse.wayool.com ; SENTRY_TRACING=false ; ...
+nano /root/projects/arbpulse/deploy/.env       # DOMAIN=arbpulse.wayool.com ; SENTRY_TRACING=false ; ...
 
 # 3) Volver a correr: build + up del contenedor app (127.0.0.1:8080)
 bash /tmp/arbpulse-deploy.sh
 
 # 4) Instalar el vhost de nginx y emitir el cert
-sudo cp /opt/arbpulse/deploy/nginx/arbpulse.wayool.com.conf /etc/nginx/sites-available/arbpulse.wayool.com
+sudo cp /root/projects/arbpulse/deploy/nginx/arbpulse.wayool.com.conf /etc/nginx/sites-available/arbpulse.wayool.com
 sudo ln -s /etc/nginx/sites-available/arbpulse.wayool.com /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d arbpulse.wayool.com
@@ -57,7 +79,7 @@ server TLS que genera, así que los ajustes SSE se mantienen en HTTPS.
 Solo si nada más usa 80/443:
 
 ```bash
-cd /opt/arbpulse/deploy
+cd /root/projects/arbpulse/deploy
 cp .env.vps.example .env && nano .env          # DOMAIN=arbpulse.wayool.com ...
 WITH_CADDY=1 bash /tmp/arbpulse-deploy.sh       # o: docker compose --profile caddy up -d --build
 ```
@@ -67,7 +89,7 @@ WITH_CADDY=1 bash /tmp/arbpulse-deploy.sh       # o: docker compose --profile ca
 ## Verificar
 
 ```bash
-docker compose -f /opt/arbpulse/deploy/docker-compose.yml ps   # app healthy/running
+docker compose -f /root/projects/arbpulse/deploy/docker-compose.yml ps   # app healthy/running
 curl -s http://127.0.0.1:8080/api/health                        # local
 curl -s https://arbpulse.wayool.com/api/health                  # público (HTTPS)
 ```
@@ -90,11 +112,12 @@ Ver `.env.vps.example`. Claves:
 ## Operación
 
 ```bash
-cd /opt/arbpulse/deploy
+cd /root/projects/arbpulse/deploy
 docker compose logs -f app        # logs de la app
 docker compose restart app        # reiniciar
 docker compose down               # detener (app; agrega --profile caddy si aplica)
-bash /tmp/arbpulse-deploy.sh      # actualizar (git pull main + rebuild)
+bash /tmp/arbpulse-deploy.sh      # actualizar manualmente (git pull main + pull GHCR)
+BUILD=1 bash /tmp/arbpulse-deploy.sh   # fallback: build local en la VPS
 ```
 
 ## Notas
