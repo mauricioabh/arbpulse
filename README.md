@@ -41,7 +41,7 @@ Capturas completas (scroll): [`dashboard-live.png`](docs/screenshots/dashboard-l
 | Feeds       | WebSocket nativo (`ws`) — APIs públicas         |
 | Frontend    | React 18, Vite, Tailwind CSS v3                 |
 | Estado      | In-memory (sin base de datos)                   |
-| Deploy      | [Fly.io](https://fly.io) — Docker multi-stage (`Dockerfile` + `fly.toml`) |
+| Deploy      | VPS Hetzner — Docker Compose + GHCR (CI/CD en `vps-deploy.yml`); Fly.io como alternativa manual |
 
 No se requieren API keys: los feeds de mercado son públicos.
 
@@ -308,21 +308,19 @@ Contrato generado desde Zod (`src/interfaces/http/schemas/`) con `@asteasolution
 
 ---
 
-## Deploy en Fly.io
+## Deploy (producción: VPS Hetzner + GHCR)
 
-El repo incluye `Dockerfile` (multi-stage: build Vite + runtime Node), `fly.toml` y el workflow `.github/workflows/fly-deploy.yml`.
+Producción corre en una **VPS de Hetzner** (`https://arbpulse.wayool.com`) con Docker Compose detrás de nginx. El deploy es **automático**:
 
-1. Instala [flyctl](https://fly.io/docs/flyctl/install/) e inicia sesión: `fly auth login`.
-2. Desde la raíz del repo: `fly launch` (primera vez) o `fly deploy`.
-3. **Región primaria:** `sin` (Singapore) — menor latencia a matching engines de Binance, Bybit y OKX.
-4. Fly expone el servicio en el puerto interno **8080** con healthcheck `GET /api/health`.
-5. Variables de entorno: opcionales; `fly.toml` incluye defaults razonables (`STALE_MS`, inventario inicial, etc.).
-6. **CI/CD:** cada push a `main` dispara deploy automático vía GitHub Actions (`fly-deploy.yml`; requiere secret `FLY_API_TOKEN`). Los PRs pasan `CI / quality` (typecheck, test, build) sin desplegar.
-7. Abre la URL pública: badge **LIVE**, cuatro venues en la price matrix, y —en mercado real— sobre todo oportunidades rechazadas por fees (esperado).
+1. Push/merge a `main` dispara `.github/workflows/vps-deploy.yml`.
+2. GitHub Actions buildea la imagen (`Dockerfile` multi-stage) y la publica en **GHCR** (`ghcr.io/mauricioabh/arbpulse`, tags `latest` + `sha-<commit>`).
+3. El workflow entra por SSH a la VPS, hace `docker compose pull` + `up -d` y espera el health check (`GET /api/health`).
 
-> Producción usa **Fly.io**. `railway.json` es un artefacto legacy del deploy anterior; no lo uses.
+Detalles, bootstrap manual y rollback: [`deploy/README.md`](deploy/README.md).
 
-Para una demo con actividad visible en pocos segundos, define `DEMO_MODE=true` en Fly (`fly secrets set` / `[env]` en `fly.toml`) o actívalo desde Controls.
+> Fly.io queda como opción alternativa manual (`fly-deploy.yml` vía workflow_dispatch, requiere `FLY_API_TOKEN`; región recomendada `sin`). `railway.json` es un artefacto legacy; no lo uses.
+
+Para una demo con actividad visible en pocos segundos, define `DEMO_MODE=true` en `deploy/.env` de la VPS o actívalo desde Controls.
 
 ---
 

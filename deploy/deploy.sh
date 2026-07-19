@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Idempotent VPS deploy for Arb Pulse (Ubuntu/Debian).
 # Safe to re-run: installs Docker if missing, clones or fast-forwards the repo,
-# then (re)builds and restarts the containers. On first run it creates .env from
-# the example and stops so you can fill in DOMAIN + secrets.
+# pulls the CI-built image from GHCR (or builds locally with BUILD=1) and
+# restarts the containers. On first run it creates .env from the example and
+# stops so you can fill in DOMAIN + secrets.
+#
+# NOTE: normal production deploys are automatic — push/merge to `main` triggers
+# .github/workflows/vps-deploy.yml (build in CI -> GHCR -> SSH pull + restart).
+# This script is the manual/bootstrap path.
 #
 # Default: runs ONLY the app on 127.0.0.1:8080 (put it behind your host reverse
 # proxy — see deploy/nginx/). Set WITH_CADDY=1 to also start the bundled Caddy on
@@ -10,9 +15,11 @@
 set -euo pipefail
 
 REPO_URL="${REPO_URL:-https://github.com/mauricioabh/arbpulse.git}"
-APP_DIR="${APP_DIR:-/opt/arbpulse}"
+APP_DIR="${APP_DIR:-/root/projects/arbpulse}"
 BRANCH="${BRANCH:-main}"
 WITH_CADDY="${WITH_CADDY:-0}"
+# BUILD=1 builds the image locally instead of pulling from GHCR (fallback).
+BUILD="${BUILD:-0}"
 
 echo "==> Arb Pulse VPS deploy (branch: $BRANCH, dir: $APP_DIR)"
 
@@ -52,13 +59,22 @@ if [ ! -f .env ]; then
   exit 0
 fi
 
-# 4) Build + run
-if [ "$WITH_CADDY" = "1" ]; then
-  echo "==> Building and starting app + bundled Caddy (ports 80/443)..."
-  docker compose --profile caddy up -d --build
+# 4) Image: pull from GHCR (default) or build locally (BUILD=1)
+if [ "$BUILD" = "1" ]; then
+  echo "==> Building image locally..."
+  docker compose build app
 else
-  echo "==> Building and starting app only (127.0.0.1:8080)..."
-  docker compose up -d --build
+  echo "==> Pulling image from GHCR..."
+  docker compose pull app
+fi
+
+# 5) Run
+if [ "$WITH_CADDY" = "1" ]; then
+  echo "==> Starting app + bundled Caddy (ports 80/443)..."
+  docker compose --profile caddy up -d
+else
+  echo "==> Starting app only (127.0.0.1:8080)..."
+  docker compose up -d app
 fi
 
 echo "==> Waiting for health..."

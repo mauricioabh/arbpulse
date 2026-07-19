@@ -12,10 +12,13 @@
 
 services:
   app:
+    # Normal flow: the image is built by CI (.github/workflows/vps-deploy.yml)
+    # and pulled from GHCR. `build:` remains for local/manual builds only
+    # (docker compose build app).
     build:
       context: ..
       dockerfile: Dockerfile
-    image: arbpulse:latest
+    image: ghcr.io/mauricioabh/arbpulse:latest
     container_name: arbpulse
     restart: unless-stopped
     env_file:
