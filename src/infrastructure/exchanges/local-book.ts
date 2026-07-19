@@ -8,7 +8,10 @@ import type { Level } from "../../domain/entities/index.js";
 export class BookSide {
   private levels = new Map<number, number>();
 
-  constructor(private readonly side: "bid" | "ask", private readonly depth: number) {}
+  constructor(
+    private readonly side: "bid" | "ask",
+    private readonly depth: number,
+  ) {}
 
   clear(): void {
     this.levels.clear();
@@ -22,11 +25,27 @@ export class BookSide {
     }
   }
 
+  /**
+   * Remove levels beyond the best `depth` prices from the internal map.
+   * Required by delta feeds that do NOT send deletes for levels evicted from
+   * their top-N window (e.g. Kraken v2 `book`): without this, evicted levels
+   * linger forever as phantom quotes.
+   */
+  truncate(): void {
+    if (this.levels.size <= this.depth) return;
+    const prices = [...this.levels.keys()].sort((a, b) =>
+      this.side === "bid" ? b - a : a - b,
+    );
+    for (const price of prices.slice(this.depth)) this.levels.delete(price);
+  }
+
   /** Sorted (bids desc, asks asc) and capped to `depth` levels. */
   toArray(): Level[] {
     const arr: Level[] = [];
     for (const [price, qty] of this.levels) arr.push({ price, qty });
-    arr.sort((a, b) => (this.side === "bid" ? b.price - a.price : a.price - b.price));
+    arr.sort((a, b) =>
+      this.side === "bid" ? b.price - a.price : a.price - b.price,
+    );
     return arr.length > this.depth ? arr.slice(0, this.depth) : arr;
   }
 
@@ -47,5 +66,11 @@ export class LocalBook {
   reset(): void {
     this.bids.clear();
     this.asks.clear();
+  }
+
+  /** Truncate both sides to their depth (see BookSide.truncate). */
+  truncate(): void {
+    this.bids.truncate();
+    this.asks.truncate();
   }
 }

@@ -19,20 +19,29 @@ interface KrakenMessage {
   data?: KrakenBookData[];
 }
 
+const KRAKEN_BOOK_DEPTH = 10;
+
 /**
  * Kraken WebSocket v2 — `book` channel.
  * Docs: https://docs.kraken.com/websockets-v2/
  * Snapshot replaces the book; updates patch individual price levels (qty 0 = remove).
+ * Kraken does NOT send deletes for levels evicted from the top-N window: the
+ * client must truncate its local book to the subscribed depth after every
+ * update, or evicted levels linger forever as phantom quotes.
  */
 export class KrakenConnector extends ExchangeConnector {
   readonly id: ExchangeId = "kraken";
   protected readonly url = "wss://ws.kraken.com/v2";
   private readonly symbol = "BTC/USDT";
 
+  constructor() {
+    super(KRAKEN_BOOK_DEPTH);
+  }
+
   protected subscribeMessage(): unknown {
     return {
       method: "subscribe",
-      params: { channel: "book", symbol: [this.symbol], depth: 10 },
+      params: { channel: "book", symbol: [this.symbol], depth: this.depth },
     };
   }
 
@@ -49,6 +58,7 @@ export class KrakenConnector extends ExchangeConnector {
 
     for (const lvl of data.bids ?? []) this.book.bids.apply(lvl.price, lvl.qty);
     for (const lvl of data.asks ?? []) this.book.asks.apply(lvl.price, lvl.qty);
+    this.book.truncate();
 
     const exchangeTs = data.timestamp ? Date.parse(data.timestamp) : null;
     this.emit(Number.isFinite(exchangeTs) ? exchangeTs : null);

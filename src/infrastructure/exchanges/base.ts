@@ -16,7 +16,7 @@ export type BookListener = (book: OrderBook) => void;
 export abstract class ExchangeConnector implements MarketDataFeed {
   abstract readonly id: ExchangeId;
   protected abstract readonly url: string;
-  protected readonly depth = 15;
+  protected readonly depth: number;
 
   protected ws: WebSocket | null = null;
   protected book: LocalBook;
@@ -29,8 +29,10 @@ export abstract class ExchangeConnector implements MarketDataFeed {
   protected closed = false;
   private lastEmitTs = 0;
 
-  constructor() {
-    this.book = new LocalBook(this.depth);
+  /** `depth` must match the depth the connector subscribes with. */
+  constructor(depth = 15) {
+    this.depth = depth;
+    this.book = new LocalBook(depth);
   }
 
   onBook(listener: BookListener): void {
@@ -165,7 +167,29 @@ export abstract class ExchangeConnector implements MarketDataFeed {
       exchangeTs,
     };
     if (book.bids.length === 0 || book.asks.length === 0) return;
+
+    // A crossed book (best bid >= best ask) is impossible on a spot venue:
+    // it means our local copy is corrupted (e.g. phantom levels). Never feed
+    // it to the engine — drop it and force a fresh snapshot via reconnect.
+    const bestBid = book.bids[0]!;
+    const bestAsk = book.asks[0]!;
+    if (bestBid.price >= bestAsk.price) {
+      this.log.warn("crossed local book detected, forcing resync", {
+        bid: bestBid.price,
+        ask: bestAsk.price,
+      });
+      this.resync();
+      return;
+    }
+
     for (const listener of this.listeners) listener(book);
+  }
+
+  /** Drop the corrupted local book and reconnect to receive a fresh snapshot. */
+  protected resync(): void {
+    this.book.reset();
+    // close() triggers the existing reconnect-with-backoff path (unless stopped).
+    this.ws?.close();
   }
 
   /** Combined-stream URLs (e.g. Binance) set this to skip the subscribe send. */
